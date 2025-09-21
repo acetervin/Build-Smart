@@ -19,7 +19,7 @@ import {
   type InsertPricing,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -43,8 +43,23 @@ export interface IStorage {
   
   // Material operations
   getAllMaterials(): Promise<Material[]>;
+  getMaterial(id: string): Promise<Material | undefined>;
   createMaterial(material: InsertMaterial): Promise<Material>;
   updateMaterial(id: string, updates: Partial<InsertMaterial>): Promise<Material>;
+  deleteMaterial(id: string): Promise<void>;
+  
+  // Reports operations
+  getUserEstimatesInDateRange(userId: string, fromDate?: Date, toDate?: Date, projectId?: string): Promise<Estimate[]>;
+  getUserReportsStats(userId: string, fromDate?: Date, toDate?: Date): Promise<{
+    totalVolume: number;
+    totalCost: number;
+    estimatesCount: number;
+    materialTotals: Record<string, { volume: number; mass: number; cost: number }>;
+  }>;
+  
+  // Settings operations
+  getUserSettings(userId: string): Promise<any>;
+  updateUserSettings(userId: string, settings: any): Promise<any>;
   
   // Supplier operations (Phase 2)
   getAllSuppliers(): Promise<Supplier[]>;
@@ -175,6 +190,11 @@ export class DatabaseStorage implements IStorage {
     return newMaterial;
   }
 
+  async getMaterial(id: string): Promise<Material | undefined> {
+    const [material] = await db.select().from(materials).where(eq(materials.id, id));
+    return material;
+  }
+
   async updateMaterial(id: string, updates: Partial<InsertMaterial>): Promise<Material> {
     const [updatedMaterial] = await db
       .update(materials)
@@ -182,6 +202,149 @@ export class DatabaseStorage implements IStorage {
       .where(eq(materials.id, id))
       .returning();
     return updatedMaterial;
+  }
+
+  async deleteMaterial(id: string): Promise<void> {
+    await db.delete(materials).where(eq(materials.id, id));
+  }
+
+  // Reports operations
+  async getUserEstimatesInDateRange(
+    userId: string,
+    fromDate?: Date,
+    toDate?: Date,
+    projectId?: string
+  ): Promise<Estimate[]> {
+    const conditions = [eq(projects.userId, userId)];
+    
+    if (fromDate) {
+      conditions.push(gte(estimates.createdAt, fromDate));
+    }
+    if (toDate) {
+      conditions.push(lte(estimates.createdAt, toDate));
+    }
+    if (projectId) {
+      conditions.push(eq(estimates.projectId, projectId));
+    }
+
+    const results = await db
+      .select({
+        id: estimates.id,
+        projectId: estimates.projectId,
+        name: estimates.name,
+        volumeM3: estimates.volumeM3,
+        concreteClass: estimates.concreteClass,
+        mixRatio: estimates.mixRatio,
+        densities: estimates.densities,
+        dryFactor: estimates.dryFactor,
+        wastageFactor: estimates.wastageFactor,
+        results: estimates.results,
+        totalCost: estimates.totalCost,
+        createdAt: estimates.createdAt,
+        updatedAt: estimates.updatedAt,
+      })
+      .from(estimates)
+      .innerJoin(projects, eq(estimates.projectId, projects.id))
+      .where(and(...conditions))
+      .orderBy(desc(estimates.createdAt));
+
+    return results;
+  }
+
+  async getUserReportsStats(
+    userId: string,
+    fromDate?: Date,
+    toDate?: Date
+  ): Promise<{
+    totalVolume: number;
+    totalCost: number;
+    estimatesCount: number;
+    materialTotals: Record<string, { volume: number; mass: number; cost: number }>;
+  }> {
+    const conditions = [eq(projects.userId, userId)];
+    
+    if (fromDate) {
+      conditions.push(gte(estimates.createdAt, fromDate));
+    }
+    if (toDate) {
+      conditions.push(lte(estimates.createdAt, toDate));
+    }
+
+    const estimatesInRange = await db
+      .select()
+      .from(estimates)
+      .innerJoin(projects, eq(estimates.projectId, projects.id))
+      .where(and(...conditions));
+
+    const totalVolume = estimatesInRange.reduce((sum, row) => sum + (row.estimates.volumeM3 || 0), 0);
+    const totalCost = estimatesInRange.reduce((sum, row) => sum + (row.estimates.totalCost || 0), 0);
+    const estimatesCount = estimatesInRange.length;
+
+    // Calculate material totals from results JSON
+    const materialTotals: Record<string, { volume: number; mass: number; cost: number }> = {};
+    
+    estimatesInRange.forEach((row) => {
+      const results = row.estimates.results as any;
+      if (results && typeof results === 'object') {
+        ['cement', 'sand', 'aggregate'].forEach((materialType) => {
+          if (results[materialType]) {
+            if (!materialTotals[materialType]) {
+              materialTotals[materialType] = { volume: 0, mass: 0, cost: 0 };
+            }
+            materialTotals[materialType].volume += results[materialType].volume || 0;
+            materialTotals[materialType].mass += results[materialType].mass || 0;
+            materialTotals[materialType].cost += results[materialType].cost || 0;
+          }
+        });
+      }
+    });
+
+    return {
+      totalVolume,
+      totalCost,
+      estimatesCount,
+      materialTotals,
+    };
+  }
+
+  // Settings operations
+  async getUserSettings(userId: string): Promise<any> {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+
+    const defaultSettings = {
+      units: 'metric',
+      currency: 'USD',
+      defaultDensities: {
+        cement: 1440,
+        sand: 1600,
+        aggregate: 1750,
+      },
+      defaultMixRatios: {
+        'C20/25': { cement: 1, sand: 2, aggregate: 4 },
+        'C25/30': { cement: 1, sand: 2, aggregate: 3 },
+        'C30/37': { cement: 1, sand: 1.5, aggregate: 3 },
+      },
+      defaultWastageFactor: 5.0,
+      defaultDryFactor: 1.54,
+    };
+
+    // Merge default settings with user's custom settings
+    const userSettings = user.settings ? JSON.parse(JSON.stringify(user.settings)) : {};
+    return { ...defaultSettings, ...userSettings };
+  }
+
+  async updateUserSettings(userId: string, settings: any): Promise<any> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        settings: settings,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return settings;
   }
 
   // Supplier operations

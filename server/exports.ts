@@ -16,6 +16,21 @@ export interface ExportOptions {
 /**
  * Generate CSV export data for BoM
  */
+// CSV sanitization helper
+function sanitizeCsvField(field: string): string {
+  if (!field) return "";
+  const str = String(field);
+  // Prefix dangerous characters to prevent formula injection
+  if (str.startsWith('=') || str.startsWith('+') || str.startsWith('-') || str.startsWith('@')) {
+    return `"'${str}"`;
+  }
+  // Escape quotes and wrap in quotes if contains comma or quote
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 export function generateCSVExport(
   results: EstimationResult,
   options: ExportOptions
@@ -25,9 +40,9 @@ export function generateCSVExport(
   
   const csvLines = [
     "Construction Material Estimate - Bill of Materials",
-    `Project: ${options.projectName}`,
-    `Location: ${options.location || "N/A"}`,
-    `Estimator: ${options.estimatorName || "ConstructAI"}`,
+    `Project: ${sanitizeCsvField(options.projectName)}`,
+    `Location: ${sanitizeCsvField(options.location || "N/A")}`,
+    `Estimator: ${sanitizeCsvField(options.estimatorName || "ConstructAI")}`,
     `Date: ${date.toLocaleDateString()}`,
     `Mix Ratio: ${formatted.parameters.mixRatio}`,
     `Dry Factor: ${formatted.parameters.dryFactor}`,
@@ -158,6 +173,18 @@ export function generateJSONExport(
 /**
  * Generate HTML content for PDF export (to be used with headless Chrome)
  */
+// HTML escaping helper
+function escapeHtml(text: string): string {
+  if (!text) return "";
+  const str = String(text);
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function generatePDFHTML(
   results: EstimationResult,
   options: ExportOptions
@@ -235,10 +262,10 @@ export function generatePDFHTML(
       <div class="project-info">
         <div class="info-card">
           <h3>Project Details</h3>
-          <p><strong>Project:</strong> ${options.projectName}</p>
-          <p><strong>Location:</strong> ${options.location || "N/A"}</p>
+          <p><strong>Project:</strong> ${escapeHtml(options.projectName)}</p>
+          <p><strong>Location:</strong> ${escapeHtml(options.location || "N/A")}</p>
           <p><strong>Date:</strong> ${date}</p>
-          <p><strong>Estimator:</strong> ${options.estimatorName || "ConstructAI"}</p>
+          <p><strong>Estimator:</strong> ${escapeHtml(options.estimatorName || "ConstructAI")}</p>
         </div>
         
         <div class="info-card">

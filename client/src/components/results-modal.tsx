@@ -15,6 +15,7 @@ interface ResultsModalProps {
   results: EstimationResult | null;
   projectName: string;
   location?: string;
+  currency?: string;
 }
 
 export default function ResultsModal({
@@ -23,6 +24,7 @@ export default function ResultsModal({
   results,
   projectName,
   location,
+  currency = "$",
 }: ResultsModalProps) {
   const { toast } = useToast();
   const [exportLoading, setExportLoading] = useState<string | null>(null);
@@ -116,7 +118,7 @@ export default function ResultsModal({
   if (!results) return null;
 
   const formatNumber = (num: number) => num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const formatCurrency = (num: number) => `$${formatNumber(num)}`;
+  const formatCurrency = (num: number) => `${currency}${formatNumber(num)}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -201,7 +203,7 @@ export default function ResultsModal({
                       {results.cement.bags} bags (50kg)
                     </td>
                     <td className="p-4 text-right text-sm font-medium text-green-600" data-testid="text-cement-cost">
-                      {formatCurrency(results.cement.bags! * 10)}
+                      {formatCurrency(results.cement.bags! * 760)}
                     </td>
                   </tr>
                   <tr className="border-t border-border" data-testid="row-sand-result">

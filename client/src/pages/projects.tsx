@@ -85,7 +85,7 @@ export default function Projects() {
                     <Filter className="w-4 h-4 mr-2" />
                     Filter
                   </Button>
-                  <Link href="/estimate/new">
+                  <Link href="/new-estimate">
                     <Button className="flex items-center space-x-2" data-testid="button-new-project">
                       <PlusCircle className="w-4 h-4" />
                       <span>New Project</span>
@@ -137,7 +137,7 @@ export default function Projects() {
                     <p className="text-muted-foreground mb-6">
                       Start by creating your first material estimation project
                     </p>
-                    <Link href="/estimate/new">
+                    <Link href="/new-estimate">
                       <Button data-testid="button-create-first-project">
                         <PlusCircle className="w-4 h-4 mr-2" />
                         Create Your First Project

@@ -17,7 +17,7 @@ const navigationItems = [
   },
   {
     name: "New Estimate",
-    href: "/estimate/new",
+    href: "/new-estimate",
     icon: Calculator,
   },
   {

@@ -1,10 +1,158 @@
+/*import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calculator, Building2, FileText, TrendingUp } from "lucide-react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
+  const [, setLocation] = useLocation();
+  const { logout } = useAuth();
+
+  const handleLogin = () => setLocation("/login");
+  const handleSignup = () => setLocation("/signup");
+  const handleLogout = () => {
+    logout();
+    setLocation("/landing");
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Hero Section *}
+      <div className="bg-gradient-to-br from-primary/10 via-background to-accent/20">
+        <div className="container mx-auto px-4 py-16 lg:py-24 text-center">
+          <div className="inline-flex items-center space-x-3 mb-6 justify-center">
+            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+              <Building2 className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-bold text-foreground">
+              BuildSmart
+            </h1>
+          </div>
+          <h2 className="text-xl lg:text-2xl text-muted-foreground mb-6 max-w-2xl mx-auto">
+            AI-Powered Construction Material Estimator
+          </h2>
+          <p className="text-lg text-muted-foreground mb-8 max-w-3xl mx-auto">
+            Generate precise Bill of Materials for concrete construction projects.
+            Save time, reduce waste, and optimize material procurement.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" onClick={handleLogin} className="px-8 py-3">
+              Login
+            </Button>
+            <Button size="lg" variant="outline" onClick={handleSignup} className="px-8 py-3">
+              Sign Up
+            </Button>
+            <Button size="lg" variant="outline" onClick={handleLogout} className="px-8 py-3">
+              Logout
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Features Section *}
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4">
+            Why Choose BuildSmart?
+          </h3>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Built specifically for construction professionals who need accurate material estimates.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="text-center p-6 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Calculator className="w-6 h-6 text-primary" />
+            </div>
+            <h4 className="font-semibold text-foreground mb-2">Precision Calculations</h4>
+            <p className="text-sm text-muted-foreground">
+              Uses volumetric mix method with ±0.5% accuracy for concrete material estimation.
+            </p>
+          </Card>
+
+          <Card className="text-center p-6 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Building2 className="w-6 h-6 text-green-600" />
+            </div>
+            <h4 className="font-semibold text-foreground mb-2">Project Management</h4>
+            <p className="text-sm text-muted-foreground">
+              Organize estimates by project, save templates, and track material usage over time.
+            </p>
+          </Card>
+
+          <Card className="text-center p-6 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-6 h-6 text-yellow-600" />
+            </div>
+            <h4 className="font-semibold text-foreground mb-2">Export & Share</h4>
+            <p className="text-sm text-muted-foreground">
+              Generate professional BoM reports in CSV, PDF, and JSON formats for easy sharing.
+            </p>
+          </Card>
+
+          <Card className="text-center p-6 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="w-6 h-6 text-purple-600" />
+            </div>
+            <h4 className="font-semibold text-foreground mb-2">Cost Optimization</h4>
+            <p className="text-sm text-muted-foreground">
+              Minimize material costs with built-in wastage factors and supplier pricing integration.
+            </p>
+          </Card>
+        </div>
+      </div>
+
+      {/* CTA Section *}
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4">
+          Ready to Optimize Your Material Estimation?
+        </h3>
+        <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+          Join construction professionals who trust BuildSmart for accurate, efficient material planning.
+        </p>
+        <Button size="lg" onClick={handleLogin} className="px-8 py-3">
+          Start Your Free Estimate
+        </Button>
+      </div>
+
+      {/* Footer *}
+      <footer className="bg-card border-t border-border py-8">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg font-semibold text-foreground">BuildSmart</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            AI-powered material estimation for modern construction projects
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+*/
+
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Calculator, Building2, FileText, TrendingUp } from "lucide-react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+
+
+export default function Landing() {
+ const [, setLocation] = useLocation();
+  const { logout } = useAuth();
+
+  const handleLogin = () => setLocation("/login");
+  const handleSignup = () => setLocation("/signup");
+  const handleLogout = () => {
+    logout();
+    setLocation("/landing");
   };
 
   return (
@@ -37,11 +185,12 @@ export default function Landing() {
               >
                 Get Started - Sign In
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 className="px-8 py-3"
                 data-testid="button-demo"
+                onClick={() => setLocation("/demo")}
               >
                 View Demo
               </Button>

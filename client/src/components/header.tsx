@@ -2,13 +2,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building2, Search, Bell } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logout();
+    setLocation("/");
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {

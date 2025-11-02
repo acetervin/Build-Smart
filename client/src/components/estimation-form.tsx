@@ -36,9 +36,19 @@ type EstimationFormData = z.infer<typeof estimationSchema>;
 
 interface EstimationFormProps {
   fullWidth?: boolean;
+  demoMode?: boolean;
+  fixedConcreteClass?: string;
+  fixedVolume?: number;
+  currency?: string;
 }
 
-export default function EstimationForm({ fullWidth = false }: EstimationFormProps) {
+export default function EstimationForm({
+  fullWidth = false,
+  demoMode = false,
+  fixedConcreteClass,
+  fixedVolume,
+  currency = "$"
+}: EstimationFormProps) {
   const { toast } = useToast();
   const [showResults, setShowResults] = useState(false);
   const [calculationResults, setCalculationResults] = useState<EstimationResult | null>(null);
@@ -47,10 +57,10 @@ export default function EstimationForm({ fullWidth = false }: EstimationFormProp
   const form = useForm<EstimationFormData>({
     resolver: zodResolver(estimationSchema),
     defaultValues: {
-      projectName: "",
-      location: "",
-      volumeM3: 100,
-      concreteClass: "C20/25",
+      projectName: demoMode ? "Demo Project" : "",
+      location: demoMode ? "Nairobi, Kenya" : "",
+      volumeM3: fixedVolume || 100,
+      concreteClass: fixedConcreteClass || "C20/25",
       cementRatio: 1,
       sandRatio: 2,
       aggRatio: 4,
@@ -148,8 +158,8 @@ export default function EstimationForm({ fullWidth = false }: EstimationFormProp
   // Handle concrete class preset selection
   const handleConcreteClassChange = (value: string) => {
     form.setValue("concreteClass", value);
-    
-    if (presets?.mixRatios?.[value]) {
+
+    if (presets?.mixRatios && presets.mixRatios[value]) {
       const ratio = presets.mixRatios[value];
       form.setValue("cementRatio", ratio.cement);
       form.setValue("sandRatio", ratio.sand);
@@ -259,6 +269,7 @@ export default function EstimationForm({ fullWidth = false }: EstimationFormProp
                             step="0.01"
                             min="0.01"
                             placeholder="100.0"
+                            disabled={demoMode}
                             {...field}
                             onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                             data-testid="input-volume"
@@ -277,6 +288,7 @@ export default function EstimationForm({ fullWidth = false }: EstimationFormProp
                         <Select
                           value={field.value}
                           onValueChange={handleConcreteClassChange}
+                          disabled={demoMode}
                           data-testid="select-concrete-class"
                         >
                           <FormControl>
@@ -490,10 +502,10 @@ export default function EstimationForm({ fullWidth = false }: EstimationFormProp
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Preview:</strong> Cement: {realtimeResults.cement.bags} bags, 
-                    Sand: {realtimeResults.sand.tonnes}t, 
+                    <strong>Preview:</strong> Cement: {realtimeResults.cement.bags} bags,
+                    Sand: {realtimeResults.sand.tonnes}t,
                     Aggregate: {realtimeResults.aggregate.tonnes}t
-                    (Total: ${realtimeResults.totals.estimatedCost})
+                    (Total: {currency}{realtimeResults.totals.estimatedCost})
                   </AlertDescription>
                 </Alert>
               )}
@@ -532,6 +544,7 @@ export default function EstimationForm({ fullWidth = false }: EstimationFormProp
         results={calculationResults}
         projectName={form.getValues("projectName")}
         location={form.getValues("location")}
+        currency={currency}
       />
     </>
   );

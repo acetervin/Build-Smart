@@ -93,7 +93,7 @@ export default function Dashboard() {
                   <Button variant="secondary" data-testid="button-import-project">
                     Import Project
                   </Button>
-                  <Link href="/estimate/new">
+                  <Link href="/new-estimate">
                     <Button className="flex items-center space-x-2" data-testid="button-new-estimate">
                       <PlusCircle className="w-4 h-4" />
                       <span>New Estimate</span>
@@ -139,7 +139,7 @@ export default function Dashboard() {
                         ) : (
                           <div className="text-center py-4">
                             <p className="text-sm text-muted-foreground mb-2">No projects yet</p>
-                            <Link href="/estimate/new">
+                            <Link href="/new-estimate">
                               <Button size="sm" variant="outline">
                                 Create First Project
                               </Button>
@@ -147,8 +147,8 @@ export default function Dashboard() {
                           </div>
                         )}
                         
-                        {dashboardStats?.recentProjects?.length > 0 && (
-                          <Link href="/projects">
+                        {/*dashboardStats.recentProjects?.length > 0 &&*/ (
+                          <Link href ="/projects">
                             <Button variant="ghost" className="w-full text-primary hover:text-primary/80 font-medium" data-testid="button-view-all-projects">
                               View All Projects →
                             </Button>

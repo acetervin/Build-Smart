@@ -1,27 +1,90 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
 import { estimateMaterials, validateEstimationInput, getPresetMixRatios, DEFAULT_DENSITIES } from "./estimator";
 import { generateCSVExport, generateJSONExport, generatePDFHTML, getExportFilename } from "./exports";
-import { insertProjectSchema, insertEstimateSchema, type EstimationInput } from "@shared/schema";
+import { insertProjectSchema, insertEstimateSchema } from "@shared/schema";
 import { z } from "zod";
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+// Dummy authentication middleware for local dev
+function isAuthenticated(req: any, res: any, next: any) {
+  req.user = { id: "demo-user" };
+  next();
+}
 
+export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/login', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      const { email, password } = req.body;
+      // Demo login - accept any email/password
+      const user = { id: 'demo-user', email, name: email.split('@')[0], role: 'user' };
+      // Upsert user in DB
+      await storage.upsertUser(user);
       res.json(user);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post('/api/auth/signup', async (req, res) => {
+    try {
+      const { name, email, password } = req.body;
+      // Demo signup - accept any data
+      const user = { id: `user-${Date.now()}`, email, name, role: 'user' };
+      await storage.upsertUser(user);
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Signup failed" });
+    }
+  });
+
+  // Magic link send endpoint
+  app.post('/api/auth/send-magic-link', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email is required" });
+
+      // Generate a simple token (in real app use JWT or secure token)
+      const token = `magic-${Date.now()}-${Buffer.from(email).toString('base64')}`;
+
+      // Store token with user info in memory for demo (in real app use DB or cache)
+      storage.upsertUser({ id: token, email, name: email.split('@')[0], role: 'user' });
+
+      // Simulate sending email by logging magic link URL
+      const magicLink = `${req.protocol}://${req.get('host')}/magic-login?token=${token}`;
+      console.log(`Magic link for ${email}: ${magicLink}`);
+
+      res.json({ message: "Magic link sent" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to send magic link" });
+    }
+  });
+
+  // Magic link verify endpoint
+  app.get('/api/auth/verify-magic-link', async (req, res) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') return res.status(400).json({ message: "Token is required" });
+
+      // Validate token by checking if user exists with token as id
+      const user = await storage.getUser(token);
+      if (!user) return res.status(400).json({ message: "Invalid or expired magic link" });
+
+      // Return user data for client to login
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to verify magic link" });
+    }
+  });
+
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
+    } catch (error) {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -38,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cement: z.number().positive("Cement density must be positive").default(DEFAULT_DENSITIES.cement),
       sand: z.number().positive("Sand density must be positive").default(DEFAULT_DENSITIES.sand),
       agg: z.number().positive("Aggregate density must be positive").default(DEFAULT_DENSITIES.agg),
-    }).default(DEFAULT_DENSITIES),
+    }),
     dryFactor: z.number().positive().max(3).default(1.54),
     wastageFactor: z.number().min(0).max(50).default(5.0),
   });
@@ -47,15 +110,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validationErrors = validateEstimationInput(req.body);
       if (validationErrors.length > 0) {
-        return res.status(400).json({ 
-          message: "Invalid input parameters", 
-          errors: validationErrors 
-        });
+        return res.status(400).json({ message: "Invalid input parameters", errors: validationErrors });
       }
-
       const input = estimationInputSchema.parse(req.body);
       const results = estimateMaterials(input);
-      
       res.json({
         results,
         links: {
@@ -65,10 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error("Estimation error:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Estimation failed" 
-      });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Estimation failed" });
     }
   });
 
@@ -77,46 +132,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { format } = req.params;
       const { results, projectName, location } = req.body;
-      
       if (!results || !projectName) {
         return res.status(400).json({ message: "Results and project name are required" });
       }
-
       const options = {
         projectName,
         location,
         estimatorName: "ConstructAI",
         date: new Date(),
       };
-
       const filename = getExportFilename(projectName, format as any);
-
       switch (format) {
         case 'csv':
-          const csvContent = generateCSVExport(results, options);
           res.setHeader('Content-Type', 'text/csv');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-          res.send(csvContent);
+          res.send(generateCSVExport(results, options));
           break;
-
         case 'json':
-          const jsonContent = generateJSONExport(results, options);
           res.setHeader('Content-Type', 'application/json');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-          res.json(jsonContent);
+          res.json(generateJSONExport(results, options));
           break;
-
         case 'pdf':
-          const htmlContent = generatePDFHTML(results, options);
           res.setHeader('Content-Type', 'text/html');
-          res.send(htmlContent);
+          res.send(generatePDFHTML(results, options));
           break;
-
         default:
           res.status(400).json({ message: "Unsupported export format" });
       }
     } catch (error) {
-      console.error("Export error:", error);
       res.status(500).json({ message: "Export failed" });
     }
   });
@@ -124,89 +168,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project management
   app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const projects = await storage.getUserProjects(userId);
+      const projects = await storage.getUserProjects(req.user.id);
       res.json(projects);
     } catch (error) {
-      console.error("Error fetching projects:", error);
       res.status(500).json({ message: "Failed to fetch projects" });
     }
   });
 
   app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const projectData = insertProjectSchema.parse({ ...req.body, userId });
-      const project = await storage.createProject(projectData);
-      res.status(201).json(project);
+      const project = insertProjectSchema.parse(req.body);
+      const newProject = await storage.createProject({ ...project, userId: req.user.id });
+      res.status(201).json(newProject);
     } catch (error) {
-      console.error("Error creating project:", error);
-      res.status(500).json({ message: "Failed to create project" });
+      res.status(400).json({ message: "Invalid project data" });
     }
   });
 
   app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const project = await storage.getProject(id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      
-      // Verify ownership
-      const userId = req.user.claims.sub;
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
+      const project = await storage.getProject(req.user.id, req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
       res.json(project);
     } catch (error) {
-      console.error("Error fetching project:", error);
       res.status(500).json({ message: "Failed to fetch project" });
     }
   });
 
   app.put('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const project = await storage.getProject(id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      
-      // Verify ownership
-      const userId = req.user.claims.sub;
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const updates = insertProjectSchema.partial().parse(req.body);
-      const updatedProject = await storage.updateProject(id, updates);
-      res.json(updatedProject);
+      const updated = await storage.updateProject(req.user.id, req.params.id, req.body);
+      res.json(updated);
     } catch (error) {
-      console.error("Error updating project:", error);
-      res.status(500).json({ message: "Failed to update project" });
+      res.status(400).json({ message: "Failed to update project" });
     }
   });
 
   app.delete('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const project = await storage.getProject(id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      
-      // Verify ownership
-      const userId = req.user.claims.sub;
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      await storage.deleteProject(id);
-      res.status(204).send();
+      await storage.deleteProject(req.user.id, req.params.id);
+      res.status(204).end();
     } catch (error) {
-      console.error("Error deleting project:", error);
       res.status(500).json({ message: "Failed to delete project" });
     }
   });
@@ -214,62 +216,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Estimate management
   app.get('/api/projects/:projectId/estimates', isAuthenticated, async (req: any, res) => {
     try {
-      const { projectId } = req.params;
-      const project = await storage.getProject(projectId);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      
-      // Verify ownership
-      const userId = req.user.claims.sub;
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const estimates = await storage.getProjectEstimates(projectId);
+      const estimates = await storage.getProjectEstimates(req.user.id, req.params.projectId);
       res.json(estimates);
     } catch (error) {
-      console.error("Error fetching estimates:", error);
       res.status(500).json({ message: "Failed to fetch estimates" });
     }
   });
 
   app.post('/api/estimates', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      // Verify project ownership
-      const project = await storage.getProject(req.body.projectId);
-      if (!project || project.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const estimateData = insertEstimateSchema.parse(req.body);
-      const estimate = await storage.createEstimate(estimateData);
-      res.status(201).json(estimate);
+      const estimate = insertEstimateSchema.parse(req.body);
+      const newEstimate = await storage.createEstimate(req.user.id, estimate);
+      res.status(201).json(newEstimate);
     } catch (error) {
-      console.error("Error creating estimate:", error);
-      res.status(500).json({ message: "Failed to create estimate" });
+      res.status(400).json({ message: "Invalid estimate data" });
     }
   });
 
   app.get('/api/estimates/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const estimate = await storage.getEstimate(id);
-      if (!estimate) {
-        return res.status(404).json({ message: "Estimate not found" });
-      }
-      
-      // Verify ownership through project
-      const project = await storage.getProject(estimate.projectId);
-      if (!project || project.userId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
+      const estimate = await storage.getEstimate(req.user.id, req.params.id);
+      if (!estimate) return res.status(404).json({ message: "Estimate not found" });
       res.json(estimate);
     } catch (error) {
-      console.error("Error fetching estimate:", error);
       res.status(500).json({ message: "Failed to fetch estimate" });
     }
   });
@@ -277,25 +246,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard data
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const [projects, recentEstimates] = await Promise.all([
-        storage.getUserProjects(userId),
-        storage.getUserRecentEstimates(userId, 5)
-      ]);
-      
-      const totalVolume = recentEstimates.reduce((sum, est) => sum + (est.volumeM3 || 0), 0);
-      const totalCost = recentEstimates.reduce((sum, est) => sum + (est.totalCost || 0), 0);
-      
-      res.json({
-        totalProjects: projects.length,
-        totalEstimates: recentEstimates.length,
-        totalVolume: Math.round(totalVolume),
-        costSavings: Math.round(totalCost * 0.15), // Estimated savings
-        recentEstimates: recentEstimates.slice(0, 3),
-        recentProjects: projects.slice(0, 3),
-      });
+      const stats = await storage.getDashboardStats(req.user.id);
+      res.json(stats);
     } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
     }
   });
@@ -313,7 +266,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const materials = await storage.getAllMaterials();
       res.json(materials);
     } catch (error) {
-      console.error("Error fetching materials:", error);
       res.status(500).json({ message: "Failed to fetch materials" });
     }
   });

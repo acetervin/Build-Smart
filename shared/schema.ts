@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").default("user"), // user, admin
+  settings: jsonb("settings"), // User preferences and settings
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -180,13 +181,13 @@ export type Pricing = typeof pricing.$inferSelect;
 export type MixRatio = {
   cement: number;
   sand: number;
-  agg: number;
+  aggregate: number;
 };
 
 export type Densities = {
   cement: number;
   sand: number;
-  agg: number;
+  aggregate: number;
 };
 
 export type EstimationInput = {

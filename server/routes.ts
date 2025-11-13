@@ -3,11 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { estimateMaterials, validateEstimationInput, getPresetMixRatios, DEFAULT_DENSITIES } from "./estimator";
 import { generateCSVExport, generateJSONExport, generatePDFHTML, getExportFilename } from "./exports";
-<<<<<<< HEAD
-import { insertProjectSchema, insertEstimateSchema } from "@shared/schema";
-=======
 import { insertProjectSchema, insertEstimateSchema, insertMaterialSchema, type EstimationInput } from "@shared/schema";
->>>>>>> 56dfc632373beaac24dedba17eab89cfdf92ac88
 import { z } from "zod";
 
 // Dummy authentication middleware for local dev
@@ -104,13 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     densities: z.object({
       cement: z.number().positive("Cement density must be positive").default(DEFAULT_DENSITIES.cement),
       sand: z.number().positive("Sand density must be positive").default(DEFAULT_DENSITIES.sand),
-<<<<<<< HEAD
       agg: z.number().positive("Aggregate density must be positive").default(DEFAULT_DENSITIES.agg),
     }),
-=======
-      aggregate: z.number().positive("Aggregate density must be positive").default(DEFAULT_DENSITIES.aggregate),
-    }).default(DEFAULT_DENSITIES),
->>>>>>> 56dfc632373beaac24dedba17eab89cfdf92ac88
     dryFactor: z.number().positive().max(3).default(1.54),
     wastageFactor: z.number().min(0).max(50).default(5.0),
   });
@@ -206,29 +197,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-<<<<<<< HEAD
       const updated = await storage.updateProject(req.user.id, req.params.id, req.body);
       res.json(updated);
-=======
-      const { id } = req.params;
-      const project = await storage.getProject(id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      
-      // Verify ownership
-      const userId = req.user.claims.sub;
-      if (project.userId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // Parse and whitelist only safe fields for update (exclude userId, id, etc.)
-      const { name, location, description, tags } = insertProjectSchema.partial().parse(req.body);
-      const safeUpdates = { name, location, description, tags };
-      
-      const updatedProject = await storage.updateProject(id, safeUpdates);
-      res.json(updatedProject);
->>>>>>> 56dfc632373beaac24dedba17eab89cfdf92ac88
     } catch (error) {
       res.status(400).json({ message: "Failed to update project" });
     }

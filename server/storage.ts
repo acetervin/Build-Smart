@@ -19,11 +19,8 @@ import {
   type InsertPricing,
 } from "@shared/schema";
 import { db } from "./db";
-<<<<<<< HEAD
-import { eq, desc, and, sql } from "drizzle-orm";
-=======
+
 import { eq, desc, and, gte, lte } from "drizzle-orm";
->>>>>>> 56dfc632373beaac24dedba17eab89cfdf92ac88
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -50,9 +47,6 @@ export interface IStorage {
   getMaterial(id: string): Promise<Material | undefined>;
   createMaterial(material: InsertMaterial): Promise<Material>;
   updateMaterial(id: string, updates: Partial<InsertMaterial>): Promise<Material>;
-<<<<<<< HEAD
-
-=======
   deleteMaterial(id: string): Promise<void>;
   
   // Reports operations
@@ -68,7 +62,6 @@ export interface IStorage {
   getUserSettings(userId: string): Promise<any>;
   updateUserSettings(userId: string, settings: any): Promise<any>;
   
->>>>>>> 56dfc632373beaac24dedba17eab89cfdf92ac88
   // Supplier operations (Phase 2)
   getAllSuppliers(): Promise<Supplier[]>;
   createSupplier(supplier: InsertSupplier): Promise<Supplier>;
@@ -210,9 +203,6 @@ export class DatabaseStorage implements IStorage {
     return updatedMaterial;
   }
 
-<<<<<<< HEAD
-  // Supplier operations (Phase 2) - Mock
-=======
   async deleteMaterial(id: string): Promise<void> {
     await db.delete(materials).where(eq(materials.id, id));
   }
@@ -357,7 +347,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Supplier operations
->>>>>>> 56dfc632373beaac24dedba17eab89cfdf92ac88
   async getAllSuppliers(): Promise<Supplier[]> {
     return [
       { id: 'sup-1', name: 'ABC Suppliers', contact: 'abc@suppliers.com', isActive: true, createdAt: new Date(), updatedAt: new Date() },

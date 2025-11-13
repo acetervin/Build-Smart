@@ -14,6 +14,7 @@ import Dashboard from "@/pages/dashboard";
 import NewEstimate from "@/pages/new-estimate";
 import Projects from "@/pages/projects";
 import Reports from "@/pages/report";
+import ReportsList from "@/pages/reports";
 import Demo from "@/pages/demo";
 import NotFound from "@/pages/not-found";
 
@@ -43,6 +44,7 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/projects" component={Projects} />
           <Route path="/new-estimate" component={NewEstimate} />
+          <Route path="/reports" component={ReportsList} />
           <Route path="/report/:id" component={Reports} />
           {/* Add more public routes here */}
           
@@ -54,6 +56,7 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/projects" component={Projects} />
           <Route path="/new-estimate" component={NewEstimate} />
+          <Route path="/reports" component={ReportsList} />
           <Route path="/report/:id" component={Reports} />
           {/* Add more authenticated routes here */}
           <Route component={NotFound} />

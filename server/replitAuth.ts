@@ -17,13 +17,16 @@ export function getSession() {
     tableName: "sessions",
   });
   return session({
-    secret: process.env.SESSION_SECRET!,
+    // Provide a fallback development secret so session middleware doesn't throw
+    secret: process.env.SESSION_SECRET || "dev-session-secret",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      // Only use secure cookies in production (HTTPS). In development localhost
+      // should use non-secure cookies so login/session flows work.
+      secure: process.env.NODE_ENV === "production",
       maxAge: sessionTtl,
     },
   });
@@ -56,60 +59,72 @@ export async function setupAuth(app: Express) {
   app.use(passport.session());
 
   // Google OAuth Strategy
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID!,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL!,
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      await upsertUser(profile);
-      const user: any = {};
-      updateUserSession(user, profile, accessToken, refreshToken);
-      done(null, user);
-    } catch (err) {
-      done(err);
-    }
-  }));
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL) {
+    passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    },
+  async (accessToken: any, refreshToken: any, profile: any, done: any) => {
+      try {
+        await upsertUser(profile);
+        const user: any = {};
+        updateUserSession(user, profile, accessToken, refreshToken);
+        done(null, user);
+      } catch (err) {
+        done(err as any);
+      }
+    }));
+  } else {
+    console.warn('Google OAuth not configured: set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_CALLBACK_URL to enable');
+  }
 
   // GitHub OAuth Strategy
-  passport.use(new GitHubStrategy({
-    clientID: process.env.GITHUB_CLIENT_ID!,
-    clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    callbackURL: process.env.GITHUB_CALLBACK_URL!,
-    scope: ["user:email"],
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      await upsertUser(profile);
-      const user: any = {};
-      updateUserSession(user, profile, accessToken, refreshToken);
-      done(null, user);
-    } catch (err) {
-      done(err);
-    }
-  }));
+  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && process.env.GITHUB_CALLBACK_URL) {
+    passport.use(new GitHubStrategy({
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: process.env.GITHUB_CALLBACK_URL,
+      scope: ["user:email"],
+    },
+  async (accessToken: any, refreshToken: any, profile: any, done: any) => {
+      try {
+        await upsertUser(profile);
+        const user: any = {};
+        updateUserSession(user, profile, accessToken, refreshToken);
+        done(null, user);
+      } catch (err) {
+        done(err as any);
+      }
+    }));
+  } else {
+    console.warn('GitHub OAuth not configured: set GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / GITHUB_CALLBACK_URL to enable');
+  }
 
   // Apple OAuth Strategy
-  passport.use(new AppleStrategy({
-    clientID: process.env.APPLE_CLIENT_ID!,
-    teamID: process.env.APPLE_TEAM_ID!,
-    keyID: process.env.APPLE_KEY_ID!,
-    privateKeyString: process.env.APPLE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
-    callbackURL: process.env.APPLE_CALLBACK_URL!,
-    passReqToCallback: false,
-    scope: ['name', 'email'],
-  },
-  async (accessToken, refreshToken, idToken, profile, done) => {
-    try {
-      await upsertUser(profile);
-      const user: any = {};
-      updateUserSession(user, profile, accessToken, refreshToken);
-      done(null, user);
-    } catch (err) {
-      done(err);
-    }
-  }));
+  if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY && process.env.APPLE_CALLBACK_URL) {
+    passport.use(new AppleStrategy({
+      clientID: process.env.APPLE_CLIENT_ID,
+      teamID: process.env.APPLE_TEAM_ID,
+      keyID: process.env.APPLE_KEY_ID,
+      privateKeyString: process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      callbackURL: process.env.APPLE_CALLBACK_URL,
+      passReqToCallback: false,
+      scope: ['name', 'email'],
+    },
+  async (accessToken: any, refreshToken: any, idToken: any, profile: any, done: any) => {
+      try {
+        await upsertUser(profile);
+        const user: any = {};
+        updateUserSession(user, profile, accessToken, refreshToken);
+        done(null, user);
+      } catch (err) {
+        done(err as any);
+      }
+    }));
+  } else {
+    console.warn('Apple OAuth not configured: set APPLE_CLIENT_ID / APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY / APPLE_CALLBACK_URL to enable');
+  }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
